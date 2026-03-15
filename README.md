@@ -15,9 +15,20 @@ Built by **Team TechSmiths** at IIT(BHU) Varanasi — March 2026
 
 ---
 
-## Demo
+## Live Demo
+
+> **[https://techsmiths-wicbce7pf2zf55npevebdc.streamlit.app/](https://techsmiths-wicbce7pf2zf55npevebdc.streamlit.app/)**
 
 ![App Homepage](assets/homepage.jpeg)
+
+---
+
+## Additional Resources
+
+| Resource | Description |
+|----------|-------------|
+| [Presentation Deck](final_ppt_pyclima.pptx) | Project slides — IIT(BHU) Hackathon 2026 |
+| [Sample NetCDF Dataset](CESM2_1900_1932.nc) | CESM2 climate data (1900–1932) for testing |
 
 ---
 
@@ -87,21 +98,36 @@ Open [http://localhost:8501](http://localhost:8501) — the app loads with a bui
 
 ```
 pyclimaexplorer/
-├── app.py                    # Main Streamlit entry point
-├── requirements.txt
+├── assets/
+│   ├── homepage.jpeg
+│   ├── heatmap_global.jpeg
+│   ├── heatmap_city.jpeg
+│   ├── compare.jpeg
+│   ├── globe.jpeg
+│   ├── story_overview.jpeg
+│   ├── story_ai.jpeg
+│   ├── story_city.jpeg
+│   ├── forecast_global.jpeg
+│   └── forecast_city.jpeg
+├── src/
+│   ├── config.py             # CSS, session state, API keys
+│   ├── data.py               # ERA5 loading & synthetic sample generation
+│   ├── utils.py              # Geocoding, nearest-index lookup, unit helpers
+│   ├── plotting.py           # Shared Plotly layout helpers & colorscale
+│   └── pages/
+│       ├── heatmap.py        # Normal mode
+│       ├── compare.py        # Compare mode
+│       ├── globe.py          # 3D Globe mode
+│       ├── story.py          # Story / AI mode
+│       └── future_scope.py   # Forecast mode (ML + Gemini)
 ├── .streamlit/
 │   └── config.toml           # Theme configuration
-└── src/
-    ├── config.py             # CSS, session state, API keys
-    ├── data.py               # ERA5 loading & synthetic sample generation
-    ├── utils.py              # Geocoding, nearest-index lookup, unit helpers
-    ├── plotting.py           # Shared Plotly layout helpers & colorscale
-    └── pages/
-        ├── heatmap.py        # Normal mode
-        ├── compare.py        # Compare mode
-        ├── globe.py          # 3D Globe mode
-        ├── story.py          # Story / AI mode
-        └── future_scope.py   # Forecast mode (ML + Gemini)
+├── app.py                    # Main Streamlit entry point
+├── requirements.txt
+├── final_ppt_pyclima.pptx    # Project presentation
+├── CESM2_1900_1932.nc        # Sample NetCDF dataset
+├── README.md
+└── .gitignore
 ```
 
 ---
