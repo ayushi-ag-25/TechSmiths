@@ -27,8 +27,8 @@ Built by **Team TechSmiths** at IIT(BHU) Varanasi — March 2026
 
 | Resource | Description |
 |----------|-------------|
-| [Presentation Deck](final_ppt_pyclima.pptx) | Project slides — IIT(BHU) Hackathon 2026 |
-| [Sample NetCDF Dataset](CESM2_1900_1932.nc) | CESM2 climate data (1900–1932) for testing |
+| [Presentation Deck](https://github.com/ayushi-ag-25/TechSmiths/raw/main/final_ppt_pyclima.pptx) | Project slides — IIT(BHU) Hackathon 2026 |
+| [Sample NetCDF Dataset](https://github.com/ayushi-ag-25/TechSmiths/raw/main/CESM2_1900_1932.nc) | CESM2 climate data (1900–1932) for testing |
 
 ---
 
