@@ -1,5 +1,5 @@
 import os 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY",'AIzaSyCKtaOPDnWAtz2w-0K79JL4KHvTGkRysak')
 CLIM_CS = [
     [0.0,  "#1a7340"],
     [0.25, "#4ade80"],
