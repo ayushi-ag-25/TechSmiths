@@ -5,7 +5,6 @@ import requests
 import plotly.graph_objects as go
 from src.utils import do_geocode, nearest_idx, to_celsius
 from src.plotting import clean_layout, CLIM_CS
-from src.config import GEMINI_API_KEY
 
 @st.cache_data(show_spinner=False)
 def get_country_name(lat, lon):
@@ -23,10 +22,6 @@ def get_country_name(lat, lon):
 
 @st.cache_data(show_spinner=False)
 def run_pixelwise_ml(_ds, sel_var, target_year, model_type):
-    """
-    Runs regression on every spatial pixel over the historical
-    time dimension to project values for the `target_year`.
-    """
     da = _ds[sel_var]
     if sel_var == "t2m":
         da = to_celsius(da)
@@ -35,38 +30,38 @@ def run_pixelwise_ml(_ds, sel_var, target_year, model_type):
 
     vals = da.values
     times = pd.to_datetime(_ds.time.values)
-    
+
     years_decimal = times.year + (times.dayofyear - 1) / 365.25
     x = years_decimal.values
-    
+
     n_lat, n_lon = vals.shape[1], vals.shape[2]
-    
+
     if model_type == "Polynomial (Degree 2)":
         x_matrix = np.vstack([x**2, x, np.ones(len(x))]).T
         pred_x = np.array([target_year**2, target_year, 1.0])
     else:
         x_matrix = np.vstack([x, np.ones(len(x))]).T
         pred_x = np.array([target_year, 1.0])
-        
+
     y_flat = vals.reshape(len(x), -1)
     mask = ~np.isnan(y_flat[0])
     y_valid = y_flat[:, mask]
-    
+
     w, _, _, _ = np.linalg.lstsq(x_matrix, y_valid, rcond=None)
     proj_valid = pred_x @ w
-    
+
     hist_mean_valid = np.mean(y_valid, axis=0)
     mid_year = np.mean(x)
     rate_valid = (proj_valid - hist_mean_valid) / max(1.0, target_year - mid_year) * 10
-    
+
     proj_flat = np.full(n_lat * n_lon, np.nan)
     rate_flat = np.full(n_lat * n_lon, np.nan)
-    
+
     proj_flat[mask] = proj_valid
     rate_flat[mask] = rate_valid
-    
+
     global_hist = np.nanmean(y_flat, axis=1)
-    
+
     return proj_flat.reshape((n_lat, n_lon)), rate_flat.reshape((n_lat, n_lon)), x, global_hist
 
 def plot_global_trend(x_hist, y_hist, target_year, model_type, unit_label):
@@ -74,7 +69,7 @@ def plot_global_trend(x_hist, y_hist, target_year, model_type, unit_label):
         coeffs = np.polyfit(x_hist, y_hist, 2)
     else:
         coeffs = np.polyfit(x_hist, y_hist, 1)
-        
+
     x_proj = np.linspace(x_hist[-1], target_year, 50)
     y_proj = np.polyval(coeffs, x_proj)
     y_fit = np.polyval(coeffs, x_hist)
@@ -100,12 +95,12 @@ def run_city_forecast(ds, sel_var, lat, lon):
     valid = ~np.isnan(y_hist)
     x_valid = x_hist[valid]
     y_valid = y_hist[valid]
-    
+
     coeffs, cov = np.polyfit(x_valid, y_valid, 2, cov=True)
     x_proj = np.linspace(x_hist[-1], 2050.0, 100)
     y_fit = np.polyval(coeffs, x_valid)
     y_proj = np.polyval(coeffs, x_proj)
-    
+
     residuals = y_valid - y_fit
     std_error = np.std(residuals)
     years_ahead = x_proj - x_hist[-1]
@@ -113,36 +108,36 @@ def run_city_forecast(ds, sel_var, lat, lon):
     ci_bound = 1.96 * std_error * expansion_factor
     y_upper = y_proj + ci_bound
     y_lower = y_proj - ci_bound
-    
+
     return times[valid], y_valid, x_proj, y_proj, y_upper, y_lower, unit, y_hist[-1], y_proj[-1]
 
 def render_future_scope(ds, times, sel_var, VAR_LABELS):
     st.markdown('<div class="sec-header">🔮 Forecast Mode — Global & City Projections</div>', unsafe_allow_html=True)
-    
+
     # --- PART 1: GLOBAL CONTINUOUS HEATMAP ---
     st.markdown("### 1. Global Climate Projection")
-    st.caption("Use historical ERA5 data to extrapolate future global conditions. The map is rendered continuously without dotted gaps.")
-    
+    st.caption("Use historical ERA5 data to extrapolate future global conditions.")
+
     fs_col1, fs_col2 = st.columns([3, 1])
     with fs_col2:
         model_type = "Polynomial (Degree 2)"
         target_year = st.slider("Target Year", min_value=2030, max_value=2100, value=2050, step=5)
-        
+
         with st.spinner(f"Training {len(ds.latitude)*len(ds.longitude)} ML models globally..."):
             proj_grid, rates_grid, x_hist, global_hist = run_pixelwise_ml(ds, sel_var, target_year, model_type)
-            
+
         unit_label = "°C" if sel_var == "t2m" else "mm"
         gmean = float(np.nanmean(proj_grid))
-        
+
         da_hist = ds[sel_var]
         if sel_var == "t2m": da_hist = to_celsius(da_hist)
         else: da_hist = da_hist * 1000
         baseline_mean = float(da_hist.mean())
-        
+
         delta = gmean - baseline_mean
         d_sign = "+" if delta >= 0 else ""
         d_color = "#ef4444" if delta > 0 else "#4ade80"
-        
+
         st.markdown(f"""
         <div class="card card-max" style="border-left-color:{d_color}">
           <span class="card-val">{gmean:.1f}{unit_label}</span>
@@ -152,9 +147,9 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
           {d_sign}{delta:.2f}{unit_label} vs baseline
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.plotly_chart(plot_global_trend(x_hist, global_hist, target_year, model_type, unit_label), use_container_width=True)
-        
+
         st.markdown("**🚨 Extreme Risk Regions**")
         flat_rates = rates_grid.flatten()
         valid_indices = np.where(~np.isnan(flat_rates))[0]
@@ -189,7 +184,6 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
         vmin = float(np.nanmin(da_hist.values))
         vmax = float(np.nanmax(da_hist.values)) + (delta * 1.5)
 
-        # Marker size: fill each 2.5° grid cell with slight overlap so no gaps show
         deg_spacing = abs(float(lats[1]) - float(lats[0])) if len(lats) > 1 else 2.5
         marker_size = max(4, round(deg_spacing * (700.0 / 360.0) * 1.35))
 
@@ -225,11 +219,11 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
         st.plotly_chart(fig_map, use_container_width=True)
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    
-    # --- PART 2: CITY FAN CHART & GEMINI RISK ---
+
+    # --- PART 2: CITY FAN CHART ---
     st.markdown("### 2. City-Level 2050 Risk Assessment")
-    st.caption("Extrapolate a city's historical pattern to 2050 using polynomial regression and generate an AI risk summary.")
-    
+    st.caption("Extrapolate a city's historical pattern to 2050 using polynomial regression.")
+
     c1, c2, c3 = st.columns([3, 1, 1])
     with c1:
         if "forecast_city" not in st.session_state:
@@ -237,35 +231,32 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
         city_input = st.text_input("Enter a City", placeholder="Miami, Jakarta, London...", key="fc_city", label_visibility="collapsed")
     with c2:
         fc_btn = st.button("▶ Run City Forecast", type="primary", use_container_width=True)
-        
+
     if city_input and fc_btn:
         lat, lon = do_geocode(city_input)
         if lat is None:
             st.error("City not found. Please try a different spelling.")
         else:
-            with st.spinner(f"Running Polynomial Regression & AI for {city_input}..."):
+            with st.spinner(f"Running Polynomial Regression for {city_input}..."):
                 t_hist, y_hist, x_proj, y_proj, y_upper, y_lower, unit, hist_last, proj_2050 = run_city_forecast(ds, sel_var, lat, lon)
-                
+
             delta_2050 = proj_2050 - hist_last
             d_sign = "+" if delta_2050 > 0 else ""
             d_color = "#ef4444" if delta_2050 > 0 else "#4ade80"
             var_name = "Temperature" if sel_var == "t2m" else "Precipitation"
-            
+
             fig_city = go.Figure()
-            # Fan Chart Band
             fig_city.add_trace(go.Scatter(
                 x=np.concatenate([x_proj, x_proj[::-1]]), y=np.concatenate([y_upper, y_lower[::-1]]),
                 fill="toself", fillcolor="rgba(239, 68, 68, 0.15)" if delta_2050 > 0 else "rgba(74, 222, 128, 0.15)",
                 line=dict(color="rgba(255,255,255,0)"), hoverinfo="skip", showlegend=True, name="95% Confidence Band"
             ))
-            # Historical
             x_hist_dec = t_hist.year + (t_hist.dayofyear - 1)/365.25
             y_hist_smooth = pd.Series(y_hist).rolling(12, center=True, min_periods=1).mean()
             fig_city.add_trace(go.Scatter(
                 x=x_hist_dec, y=y_hist_smooth, mode="lines", line=dict(color="#60a5fa", width=2),
                 name="Historical (12-mo Avg)", hovertemplate="<b>%{x:.1f}</b><br>Historical: %{y:.1f}" + unit + "<extra></extra>"
             ))
-            # Projection
             fig_city.add_trace(go.Scatter(
                 x=x_proj, y=y_proj, mode="lines", line=dict(color="#ef4444" if delta_2050 > 0 else "#4ade80", width=3, dash="dash"),
                 name="2050 ML Projection", hovertemplate="<b>%{x:.1f}</b><br>Projected: %{y:.1f}" + unit + "<extra></extra>"
@@ -276,57 +267,22 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 **clean_layout()
             )
-            
-            viz_col, ai_col = st.columns([1.1, 1])
-            with viz_col:
-                st.markdown(f"""
-                <div style="display:flex; gap:10px; margin-bottom:10px;">
-                  <div class="card" style="flex:1; border-top:3px solid #60a5fa; padding:1rem;">
-                    <span style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Recent Avg</span>
-                    <div style="font-size:1.5rem; font-weight:700; color:#fff;">{hist_last:.1f}{unit}</div>
-                  </div>
-                  <div class="card" style="flex:1; border-top:3px solid {d_color}; padding:1rem;">
-                    <span style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">2050 Projection</span>
-                    <div style="font-size:1.5rem; font-weight:700; color:{d_color};">{proj_2050:.1f}{unit}</div>
-                  </div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.plotly_chart(fig_city, use_container_width=True)
-                
-            with ai_col:
-                st.markdown("""
-                <div style="font-size:0.75rem; color:#f59e0b; font-weight:600; letter-spacing:0.1em;
-                            text-transform:uppercase; margin-bottom:0.6rem;">🤖 Gemini AI Risk Summary</div>
-                """, unsafe_allow_html=True)
-                def _call_gemini(prompt_text):
-                    for model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"]:
-                        try:
-                            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-                            payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                            r = requests.post(url, json=payload, timeout=15)
-                            if r.status_code == 200:
-                                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                        except Exception:
-                            continue
-                    return None
 
-                prompt = (
-                    f"A machine learning regression model projects that by 2050, the average {var_name.lower()} "
-                    f"in {city_input} will shift from {hist_last:.1f}{unit} to {proj_2050:.1f}{unit} (a {d_sign}{delta_2050:.2f}{unit} change). "
-                    f"In exactly 3 specific bullet points, summarize the environmental and infrastructural risks "
-                    f"{city_input} will face. Keep it under 60 words total."
-                )
-                insight = _call_gemini(prompt)
-                if insight:
-                    st.markdown(f"""
-                    <div class="ai-box" style="margin-top:0; font-size:0.9rem;">
-                      {insight}
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.warning("⚠️ Gemini AI is unavailable right now. The rule-based suggestions below still apply.")
+            st.markdown(f"""
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+              <div class="card" style="flex:1; border-top:3px solid #60a5fa; padding:1rem;">
+                <span style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Recent Avg</span>
+                <div style="font-size:1.5rem; font-weight:700; color:#fff;">{hist_last:.1f}{unit}</div>
+              </div>
+              <div class="card" style="flex:1; border-top:3px solid {d_color}; padding:1rem;">
+                <span style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">2050 Projection</span>
+                <div style="font-size:1.5rem; font-weight:700; color:{d_color};">{proj_2050:.1f}{unit}</div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.plotly_chart(fig_city, use_container_width=True)
 
-            # ── Rule-based Adaptation Suggestions (no API key needed) ──────────
+            # ── Rule-based Adaptation Suggestions ────────────────────────────
             st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
             st.markdown("""
             <div style="font-size:0.7rem;color:#4ade80;font-weight:600;letter-spacing:0.1em;
@@ -341,8 +297,7 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
             suggestions = []
 
             if sel_var == "t2m":
-                warming = delta_2050  # °C change by 2050
-
+                warming = delta_2050
                 if warming > 3.0:
                     urgency_color = "#ef4444"
                     urgency_label = "🚨 Critical — Action Needed Now"
@@ -394,8 +349,7 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
                          "Update construction standards now to prepare for hotter future summers — "
                          "better insulation, passive cooling design, and orientation guidelines."),
                     ]
-
-            else:  # precipitation variable
+            else:
                 precip_change = delta_2050
                 if precip_change < -5:
                     urgency_color = "#f59e0b"
@@ -437,7 +391,6 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
                          "regardless of precipitation trends."),
                     ]
 
-            # Urgency banner
             st.markdown(f"""
             <div style="font-size:0.88rem;color:{urgency_color};font-weight:600;
                         padding:0.6rem 1rem;background:{urgency_color}14;border-radius:8px;
@@ -447,7 +400,6 @@ def render_future_scope(ds, times, sel_var, VAR_LABELS):
             </div>
             """, unsafe_allow_html=True)
 
-            # Suggestion cards — 2 per row
             for i in range(0, len(suggestions), 2):
                 cols = st.columns(2)
                 for col, (ico, title, body) in zip(cols, suggestions[i:i+2]):
