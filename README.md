@@ -1,4 +1,4 @@
-# PyClimaExplorer
+\# PyClimaExplorer
 
 > **Turn 30+ years of raw climate data into interactive stories, forecasts, and AI-powered insights — in your browser.**
 
@@ -27,8 +27,9 @@ Built by **Team TechSmiths** at IIT(BHU) Varanasi — March 2026
 
 | Resource | Description |
 |----------|-------------|
-| [Presentation Deck](https://github.com/ayushi-ag-25/TechSmiths/raw/main/final_ppt_pyclima.pptx) | Project slides — IIT(BHU) Hackathon 2026 |
-| [Sample NetCDF Dataset](https://github.com/ayushi-ag-25/TechSmiths/raw/main/CESM2_1900_1932.nc) | CESM2 climate data (1900–1932) for testing |
+| [Presentation Deck](https://drive.google.com/file/d/1qIPJu3i36C7122HMfRm_-mIclKBO8EP_/view?usp=sharing) | Project slides — IIT(BHU) Hackathon 2026 |
+| [Sample NetCDF Dataset](https://drive.google.com/file/d/1MBVJM8ON7aLchCWQBig8bRqBdf3b3bmf/view?usp=sharing) | CESM2 climate data (1900–1932) for testing |
+| [Demo Video](https://drive.google.com/file/d/13jov4_NWdLcy83ml1z_2_9aaT8lhiPtM/view?usp=sharing) | Full walkthrough of all 5 modes |
 
 ---
 
@@ -124,8 +125,6 @@ pyclimaexplorer/
 │   └── config.toml           # Theme configuration
 ├── app.py                    # Main Streamlit entry point
 ├── requirements.txt
-├── final_ppt_pyclima.pptx    # Project presentation
-├── CESM2_1900_1932.nc        # Sample NetCDF dataset
 ├── README.md
 └── .gitignore
 ```
